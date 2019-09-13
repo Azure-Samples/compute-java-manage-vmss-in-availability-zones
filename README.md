@@ -4,9 +4,8 @@ languages:
 - java
 products:
 - azure
-extensions:
-- services: Compute
-- platforms: java
+description: "Getting Started with Compute - Manage Zonal Virtual Machine Scale Set - in Java"
+urlFragment: compute-java-manage-vmss-in-availability-zones
 ---
 
 # Getting Started with Compute - Manage Zonal Virtual Machine Scale Set - in Java #
