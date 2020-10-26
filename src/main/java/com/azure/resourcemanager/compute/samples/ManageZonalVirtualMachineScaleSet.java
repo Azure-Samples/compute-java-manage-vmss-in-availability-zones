@@ -1,28 +1,28 @@
-/**
- * Copyright (c) Microsoft Corporation. All rights reserved.
- * Licensed under the MIT License. See License.txt in the project root for
- * license information.
- */
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
-package com.microsoft.azure.management.compute.samples;
+package com.azure.resourcemanager.compute.samples;
 
-import com.microsoft.azure.management.Azure;
-import com.microsoft.azure.management.compute.KnownLinuxVirtualMachineImage;
-import com.microsoft.azure.management.compute.VirtualMachineScaleSet;
-import com.microsoft.azure.management.compute.VirtualMachineScaleSetSkuTypes;
-import com.microsoft.azure.management.network.LoadBalancer;
-import com.microsoft.azure.management.network.LoadBalancerSkuType;
-import com.microsoft.azure.management.network.Network;
-import com.microsoft.azure.management.network.PublicIPAddress;
-import com.microsoft.azure.management.network.PublicIPSkuType;
-import com.microsoft.azure.management.network.TransportProtocol;
-import com.microsoft.azure.management.resources.ResourceGroup;
-import com.microsoft.azure.management.resources.fluentcore.arm.AvailabilityZoneId;
-import com.microsoft.azure.management.resources.fluentcore.arm.Region;
-import com.microsoft.azure.management.samples.Utils;
-import com.microsoft.rest.LogLevel;
+import com.azure.core.credential.TokenCredential;
+import com.azure.core.http.policy.HttpLogDetailLevel;
+import com.azure.core.management.AzureEnvironment;
+import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.azure.resourcemanager.AzureResourceManager;
+import com.azure.resourcemanager.compute.models.KnownLinuxVirtualMachineImage;
+import com.azure.resourcemanager.compute.models.VirtualMachineScaleSet;
+import com.azure.resourcemanager.compute.models.VirtualMachineScaleSetSkuTypes;
+import com.azure.resourcemanager.network.models.LoadBalancer;
+import com.azure.resourcemanager.network.models.LoadBalancerSkuType;
+import com.azure.resourcemanager.network.models.Network;
+import com.azure.resourcemanager.network.models.PublicIpAddress;
+import com.azure.resourcemanager.network.models.PublicIPSkuType;
+import com.azure.resourcemanager.network.models.TransportProtocol;
+import com.azure.resourcemanager.resources.models.ResourceGroup;
+import com.azure.resourcemanager.resources.fluentcore.arm.AvailabilityZoneId;
+import com.azure.core.management.Region;
+import com.azure.core.management.profile.AzureProfile;
+import com.azure.resourcemanager.samples.Utils;
 
-import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -37,28 +37,27 @@ import java.util.List;
 public final class ManageZonalVirtualMachineScaleSet {
     /**
      * Main function which runs the actual sample.
-     * @param azure instance of the azure client
+     * @param azureResourceManager instance of the azure client
      * @return true if sample runs successfully
      */
-    public static boolean runSample(Azure azure) {
+    public static boolean runSample(AzureResourceManager azureResourceManager) {
         final Region region = Region.US_EAST2;
-        final String rgName = Utils.createRandomName("rgCOMV");
-        final String loadBalancerName = Utils.createRandomName("extlb");
+        final String rgName = Utils.randomResourceName(azureResourceManager, "rgCOMV", 15);
+        final String loadBalancerName = Utils.randomResourceName(azureResourceManager, "extlb", 15);
         final String publicIPName = "pip-" + loadBalancerName;
         final String frontendName = loadBalancerName + "-FE1";
         final String backendPoolName1 = loadBalancerName + "-BAP1";
         final String backendPoolName2 = loadBalancerName + "-BAP2";
         final String natPoolName1 = loadBalancerName + "-INP1";
         final String natPoolName2 = loadBalancerName + "-INP2";
-        final String vmssName1 = Utils.createRandomName("vmss1");
-        final String vmssName2 = Utils.createRandomName("vmss2");
+        final String vmssName1 = Utils.randomResourceName(azureResourceManager, "vmss1", 15);
+        final String vmssName2 = Utils.randomResourceName(azureResourceManager, "vmss2", 15);
 
         final String userName = "tirekicker";
-        // [SuppressMessage("Microsoft.Security", "CS002:SecretInNextLine", Justification="Serves as an example, not for deployment. Please change when using this in your code.")]
-        final String password = "12NewPA23w0rd!";
+        final String password = Utils.password();
 
         try {
-            ResourceGroup resourceGroup = azure.resourceGroups()
+            ResourceGroup resourceGroup = azureResourceManager.resourceGroups()
                     .define(rgName)
                     .withRegion(region)
                     .create();
@@ -68,7 +67,7 @@ public final class ManageZonalVirtualMachineScaleSet {
 
             System.out.println("Creating a zone resilient public ip address");
 
-            PublicIPAddress publicIPAddress = azure.publicIPAddresses()
+            PublicIpAddress publicIPAddress = azureResourceManager.publicIpAddresses()
                     .define(publicIPName)
                     .withRegion(region)
                     .withExistingResourceGroup(resourceGroup)
@@ -87,7 +86,7 @@ public final class ManageZonalVirtualMachineScaleSet {
 
             System.out.println("Creating a zone resilient load balancer");
 
-            LoadBalancer loadBalancer = azure.loadBalancers()
+            LoadBalancer loadBalancer = azureResourceManager.loadBalancers()
                     .define(loadBalancerName)
                     .withRegion(region)
                     .withExistingResourceGroup(resourceGroup)
@@ -122,7 +121,7 @@ public final class ManageZonalVirtualMachineScaleSet {
                     .attach()
                     // Explicitly define the frontend
                     .definePublicFrontend(frontendName)
-                    .withExistingPublicIPAddress(publicIPAddress)   // Frontend with PIP means internet-facing load-balancer
+                    .withExistingPublicIpAddress(publicIPAddress)   // Frontend with PIP means internet-facing load-balancer
                     .attach()
                     // Add two probes one per rule
                     .defineHttpProbe("httpProbe")
@@ -148,7 +147,7 @@ public final class ManageZonalVirtualMachineScaleSet {
 
             System.out.println("Creating network for virtual machine scale sets");
 
-            Network network = azure
+            Network network = azureResourceManager
                     .networks()
                     .define("vmssvnet")
                     .withRegion(region)
@@ -167,7 +166,7 @@ public final class ManageZonalVirtualMachineScaleSet {
 
             // HTTP goes to this virtual machine scale set
             //
-            VirtualMachineScaleSet virtualMachineScaleSet1 = azure.virtualMachineScaleSets()
+            VirtualMachineScaleSet virtualMachineScaleSet1 = azureResourceManager.virtualMachineScaleSets()
                     .define(vmssName1)
                     .withRegion(region)
                     .withExistingResourceGroup(resourceGroup)
@@ -183,7 +182,7 @@ public final class ManageZonalVirtualMachineScaleSet {
                     .withAvailabilityZone(AvailabilityZoneId.ZONE_1)
                     .create();
 
-            System.out.println("Created zone aware virtual machine scale set");
+            System.out.println("Created zone aware virtual machine scale set: " + virtualMachineScaleSet1.id());
 
             //=============================================================
             // Create a zone aware virtual machine scale set
@@ -192,7 +191,7 @@ public final class ManageZonalVirtualMachineScaleSet {
 
             // HTTPS goes to this virtual machine scale set
             //
-            VirtualMachineScaleSet virtualMachineScaleSet2 = azure.virtualMachineScaleSets()
+            VirtualMachineScaleSet virtualMachineScaleSet2 = azureResourceManager.virtualMachineScaleSets()
                     .define(vmssName2)
                     .withRegion(region)
                     .withExistingResourceGroup(resourceGroup)
@@ -208,18 +207,13 @@ public final class ManageZonalVirtualMachineScaleSet {
                     .withAvailabilityZone(AvailabilityZoneId.ZONE_1)
                     .create();
 
-            System.out.println("Created zone aware virtual machine scale set");
+            System.out.println("Created zone aware virtual machine scale set: " + virtualMachineScaleSet2.id());
 
             return true;
-        } catch (Exception f) {
-
-            System.out.println(f.getMessage());
-            f.printStackTrace();
-
         } finally {
             try {
                 System.out.println("Deleting Resource Group: " + rgName);
-                azure.resourceGroups().deleteByName(rgName);
+                azureResourceManager.resourceGroups().beginDeleteByName(rgName);
                 System.out.println("Deleted Resource Group: " + rgName);
             } catch (NullPointerException npe) {
                 System.out.println("Did not create any resources in Azure. No clean up is necessary");
@@ -227,7 +221,6 @@ public final class ManageZonalVirtualMachineScaleSet {
                 g.printStackTrace();
             }
         }
-        return false;
     }
 
     /**
@@ -240,17 +233,21 @@ public final class ManageZonalVirtualMachineScaleSet {
             //=============================================================
             // Authenticate
 
-            final File credFile = new File(System.getenv("AZURE_AUTH_LOCATION"));
+            final AzureProfile profile = new AzureProfile(AzureEnvironment.AZURE);
+            final TokenCredential credential = new DefaultAzureCredentialBuilder()
+                .authorityHost(profile.getEnvironment().getActiveDirectoryEndpoint())
+                .build();
 
-            Azure azure = Azure.configure()
-                    .withLogLevel(LogLevel.BODY_AND_HEADERS)
-                    .authenticate(credFile)
-                    .withDefaultSubscription();
+            AzureResourceManager azureResourceManager = AzureResourceManager
+                .configure()
+                .withLogLevel(HttpLogDetailLevel.BASIC)
+                .authenticate(credential, profile)
+                .withDefaultSubscription();
 
             // Print selected subscription
-            System.out.println("Selected subscription: " + azure.subscriptionId());
+            System.out.println("Selected subscription: " + azureResourceManager.subscriptionId());
 
-            runSample(azure);
+            runSample(azureResourceManager);
         } catch (Exception e) {
             System.out.println(e.getMessage());
             e.printStackTrace();
